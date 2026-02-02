@@ -1,0 +1,329 @@
+﻿羽毛球 AI 智能私教平台 (Badminton AI Coach) - 技术设计文档
+版本: 2.14
+状态: 正式草案 (Final Draft)
+最后更新: 2024-05-24
+1. 项目概述 (Project Overview)
+1.1 核心目标
+构建一个基于 Google Gemini API 的羽毛球垂直领域智能分析平台。用户通过上传打球视频或个人穿搭图片，获取专业、个性化且具有连续性的指导建议。
+1.2 核心价值主张
+* 多维度分析：通过三个不同侧重点的虚拟教练，提供全方位的技术、战术及心理支持。
+* 成长追踪：系统具备“记忆”，能基于用户历史表现提供进阶建议，而非单次孤立的分析。
+* 专业背书：基于 RAG 技术挂载 BWF 规则与专业教材库，确保 AI 建议的专业性与准确性。
+* 精准诊断与微课：不仅指出问题，还提供点击即达的“病灶详解”与“推荐资源”，实现“测-练”闭环。
+* 闭环督导：提供可手动触发的智能排程系统，将 AI 建议转化为具体的日程表。
+* 全时伴随：提供常驻的 AI 问答助手，既能解答通用羽毛球知识，又能基于个人训练报告进行深度个性化指导。
+* 情绪与穿搭：兼顾硬核技术与软性情绪价值（OOTD 点评），通过六维评分体系打造球场风尚。
+1.3 模块生态联动 (Ecosystem Synergy)
+各功能模块并非孤岛，而是紧密咬合的有机体：
+1. 穿搭 (Style) -> 视频 (Video):
+   * OOTD 分析提取的服装特征（如“红衣黑裤”），自动成为视频分析中的 视觉锚点 (Visual Anchor)，锁定分析对象。
+2. 视频 (Video) -> 知识库 (RAG):
+   * 视频诊断出的病灶标签（如“启动步慢”），自动触发知识库检索，生成精准的 微课推荐。
+3. 视频 (Video) -> 日程 (Schedule):
+   * 视频分析出的技术短板，经用户确认后，自动转化为 14 天 训练日程表。
+4. 所有数据 -> 助教 (Assistant):
+   * AI 助教拥有上帝视角，能同时读取用户的训练历史、穿搭风格和日程安排，提供极其个性化的回答（如：“你今天穿得这么专业，去练练上次还没学会的反手吧”）。
+2. 系统架构 (System Architecture)
+2.1 技术栈推荐
+* 开发工具 (IDE): Trae (推荐) - 利用其 AI 编程能力快速生成 RAG 逻辑与前后端代码。
+* 前端 (Frontend): React (Next.js) - 适合构建响应式、交互性强的 Web 应用。
+* 后端 (Backend): Python (FastAPI) - Python 是处理 LangChain 和向量计算的首选语言。
+   * 任务队列: Celery + Redis - 处理定时任务（通知）和异步视频分析。
+* AI 引擎 (AI Engine): Google Gemini 模型矩阵
+   * 主力: Gemini 2.5 Flash (视频/图像理解)
+   * 推理: Gemini 1.5 Pro (复杂战术分析)
+   * Embedding: Google Gecko (文本向量化)
+* 知识库框架 (RAG): LangChain - 连接 PDF/文档数据、向量数据库与 Gemini API。
+* 数据库 (Database):
+   * 关系型: PostgreSQL (用户、会话、历史、训练日程)
+   * 向量型: Pinecone 或 Chroma - 存储拆解后的羽毛球规则、战术手册向量。
+* 通知服务: 微信小程序订阅消息 (首选) 或 公众号模板消息。
+2.2 逻辑流程图 (Logic Flow)
+1. 上传与预览 (Upload & Preview):
+   * 用户上传视频/图片 -> 存储服务 -> 获取 URL。
+   * 前端展示预览: 视频可播放、拖动进度条；图片可放大查看。此时 不进行 任何 AI 分析，等待用户确认。
+2. 身份确认与触发 (Confirmation & Trigger):
+   * 用户在预览界面确认无误。
+   * (可选) 框选/指定画面中的主体。
+   * 用户手动点击 [开始 AI 分析] 按钮。
+3. 知识检索 (RAG): 后端接收请求，检索相关技术标准。
+4. AI 分析: Gemini 生成 JSON 分析报告（含具体Tag和推荐资源）。
+5. 前端交互: 分析完成后，界面自动刷新，展示 Tag、诊断卡片及教练建议。
+6. 智能问答: 用户随时提问 -> AI 结合知识库与最新分析报告回答。
+7. 计划转化:
+   * 路径 A: 用户主动点击“生成计划” -> AI 生成日程 -> 存入数据库 -> 每日提醒。
+   * 路径 B: AI 在对话中隐式建议 -> 系统存为草稿 -> 适时弹窗提醒用户生成。
+3. 核心功能设计 (Core Features)
+3.1 视频技术分析 (Video Analysis)
+流程状态机 (State Machine) [新增]
+* Idle (空闲): 显示上传区域。
+* Preview (预览): 视频加载完毕，用户可观看原始素材。右侧显示 [开始 AI 分析] 主按钮。
+* Analyzing (分析中): 按钮变为加载状态，显示进度提示（“斛教练正在观察您的步伐...”）。
+* Completed (完成): 加载动画消失，展示分析结果面板。
+模式 A: 实时流式点评 (Timeline)
+* 交互: 视频播放时，评论框内容与视频进度条同步。
+模式 B: 深度整场复盘 (Session Summary)
+* 交互: 纯文本深度报告，包含“动作描述”、“优点”、“改进建议”。
+3.2 虚拟教练矩阵
+教练代号
+	角色定位
+	侧重点
+	风格
+	斛教练
+	技术型
+	动作规范、生物力学
+	严厉度 0-10 可调，专注于动作纠错
+	李指导
+	战术型
+	线路、预判、球商
+	风格可调（稳健/激进），专注于赢球策略
+	小安
+	心理/激励
+	情绪价值、鼓励
+	热情、暖心，专注于自信心建立
+	3.3 连续性对话与记忆系统
+* 机制: 生成 User Profile Summary 存入 PG，作为下次 Prompt 的背景。
+3.4 运动穿搭与形象点评 (Style & OOTD)
+交互流程 (Interaction Flow) [新增]:
+1. 上传: 用户上传图片。
+2. 预览: 界面展示高清大图。
+3. 触发: 用户点击 [分析我的球场穿搭] 按钮。
+4. 生成: 右侧面板生成雷达图和评分。
+此功能不再是简单的“好看/不好看”，而是基于 100 分制六维雷达图 的专业量化分析。
+核心评价体系 (The 6-Dimension Style Metric):
+总分 100 分，各维度加权如下：
+1. 功能匹配度 (Function Fit) [20分]
+2. 身材比例与线条 (Silhouette) [20分]
+3. 配色与视觉焦点 (Color Harmony) [15分]
+4. 质感与细节 (Material & Detail) [15分]
+5. 风格一致性 (Style Identity) [15分]
+6. 上镜表现 (Camera Presence) [15分]
+3.5 混合水平校准 (Hybrid Skill Calibration)
+* 逻辑: 用户自选等级 + AI 验证 -> 动态调整术语深度。
+3.6 视觉锚定 (Visual Anchoring)
+* 功能: 利用 OOTD 特征或描述，锁定多人视频中的特定用户。
+3.7 专业知识库引擎 (RAG Core)
+* 功能: 检索 BWF 规则和技术文档，增强 AI 回答的专业度。
+* 数据源: 规则 PDF、技术 Markdown、器材参数 CSV、附录 A 中的标准术语库。
+3.8 智能训练督导系统 (Smart Drill Supervisor)
+* 逻辑: “先诊断，后开药”。
+* 交互流程:
+   1. 视频分析报告页底部显示按钮：🔘 生成针对性特训计划。
+   2. 用户点击 -> AI 基于本场缺点生成 14 天 JSON 计划。
+   3. 前端弹窗预览日历 -> 用户确认/调整 -> 授权推送权限。
+   4. 后端写入数据库 -> 每日定时发送小程序/公众号提醒。
+3.9 智能建议转化系统 (Implicit Conversion)
+* 逻辑: 防止用户遗漏对话中的好建议。
+* 流程:
+   1. 旁路监听: 轻量级 AI 实时分析斛教练的回复。
+   2. 意图提取: 若回复包含“建议练习两周...” -> 提取为 Pending Suggestion 存入数据库。
+   3. 主动召回:
+      * 用户下次登录 Dashboard 时，顶部显示提示卡片：“斛教练上次建议的‘反手特训’，要现在生成计划吗？”
+3.10 智能诊断卡片 (Smart Insight Cards)
+Dashboard 上的“重点提升领域”不再是静态文本，而是交互式入口。
+* 数据来源: 每次视频分析后，AI 必须输出 Top_3_Issues 列表。
+* 命名规范: 必须优先使用 附录 A (Standard Terminology) 中的术语。
+* 展示形式:
+   * 标签 (Tags): 启动步 (Split Step)、内旋发力 (Pronation)、网前扑球 (Net Kill)。
+   * 颜色编码: 🔴 红色(急需改进) / 🟡 黄色(建议优化)。
+* 点击交互 (The Modal):
+   * 用户点击标签 -> 弹出悬浮卡片。
+   * 卡片内容:
+      1. 现象描述: "斛教练检测到你在击球瞬间，手腕没有产生鞭打效应，导致球速慢。"
+      2. 原理讲解: 简短解释该术语的生物力学原理。
+      3. 推荐训练: "建议练习：矿泉水瓶手腕操。"
+      4. 资源链接: 跳转知识库文章或视频。
+3.11 训练推荐生成逻辑 (Drill Recommendation Logic)
+描述系统如何从“发现问题”到“给出具体训练法”的完整闭环，确保推荐内容的科学性。
+1. 第一步：病灶锁定 (Diagnosis)
+   * 执行者: Gemini (斛教练模式)。
+   * 输出: 结构化标签，如 Tag: 鞭打发力缺失。
+2. 第二步：知识库映射 (Knowledge Mapping)
+   * 执行者: RAG 检索引擎。
+   * Input: "鞭打发力" -> Retrieval: "矿泉水瓶手腕操", "八字绕环挥拍"。
+3. 第三步：处方生成 (Prescription Generation)
+   * 执行者: Gemini (整合模式)。
+   * Output: "建议练习：矿泉水瓶手腕操 (坐姿)，3组 x 15次"。
+3.12 AI 随身助教 (AI Pocket Assistant)
+一个常驻在页面右下角或侧边栏的智能对话助手，提供 24/7 的专业咨询。
+4. 界面与交互设计 (UI/UX Design Concepts)
+4.1 站点地图 (Site Map)
+* Level 1: Landing Page
+* Level 2: Dashboard (总控台)
+   * 重点提升领域区: 使用 Tag Cloud (标签云) 布局。
+   * 待办建议提醒: 顶部横幅。
+   * 底部: “斛教练的每日一句” (Daily Tips)。
+* Global Widget: AI 助教悬浮窗 (右下角常驻，点击展开聊天界面)。
+* Level 3: Workspaces (Video Studio / Style Studio)
+4.2 视觉风格
+* Deep Dark Mode: 深蓝背景 (#1a1f2c) + 荧光黄 (#ccff00) 强调色。
+* Tag Design: 胶囊样式，半透明背景，带微弱的发光效果 (Glow effect)。
+4.3 核心布局细节
+A. 视频分析室 (The Video Arena)
+* 左侧 (65%) - 播放与控制区: [新增]
+   * 播放器: 支持倍速、逐帧播放。
+   * 底部操作栏:
+      * [重新上传]
+      * [身份锁定] (手动框选)
+      * [开始 AI 分析] (主行动按钮，高亮显示)
+* 右侧 (35%) - 教练控制台:
+   * 默认状态: 显示“请上传视频并点击分析以获取指导”。
+   * 分析后状态: 显示 Tab 1 (实时指导) / Tab 2 (深度复盘)。
+B. 穿搭风尚室 (The Style Studio)
+* 左侧 (40%): [新增]
+   * 图片预览区 (支持缩放)。
+   * 底部按钮：[重新上传] [开始穿搭诊断]。
+* 右侧 (60%):
+   * 动态雷达图 (Dynamic Radar Chart): 实时渲染 6 维评分 (Function, Silhouette, Color, Material, Identity, Camera)。
+   * 总分大字: 如 "85 分 - 场上焦点"。
+   * 风格标签: 极简运动 冷感。
+   * 改进建议: 针对低分项给出具体建议（如：“把这双慢跑鞋换成专业的 YY 65Z，不仅保护脚踝，还能增加 5 分功能分”）。
+C. 教练卡片 UI (Coach Cards)
+* 斛教练: 蓝色冷光背景，配备雷达图、骨骼分析线条元素。
+4.4 设置中心设计 (Settings Center)
+A. 斛教练严厉度调节 (Hu's Strictness Slider)
+* 交互组件: 一个 0-10 的步进滑块。
+* 视觉反馈 (Visual Feedback): 滑动滑块时，斛教练的头像表情和背景色温会发生变化。
+   * 0-3 (Green/Soft): 头像微笑，背景柔和。Label: “慈母模式 (Encouraging)”
+   * 4-7 (Blue/Pro): 头像严肃，背景冷光。Label: “严师模式 (Professional)”
+   * 8-9 (Orange/Hard): 头像锐利，背景警示。Label: “魔鬼模式 (Ruthless)”
+   * 10 (Red/Hell): 头像阴影，背景黑红。Label: “地狱模式 (Nightmare)”
+B. 李指导战术风格 (Li's Tactical Style)
+* 交互组件: 两个互斥的选项卡 (Toggle Buttons)。
+* 视觉反馈:
+   * 稳健控制 (Conservative): 显示盾牌图标，绿色调。
+   * 搏杀进攻 (Aggressive): 显示利剑图标，火红色调。
+5. AI 提示词工程策略 (Prompt Engineering Strategy)
+为了保证输出质量和安全性，需要设计严格的 System Prompt。
+5.1 全局守门员 (The Gatekeeper)
+在所有 Prompt 的最前端加入限制指令：
+"你是一个专业的羽毛球分析 AI 系统。你的所有回答必须限制在羽毛球运动、装备、训练、健康建议以及运动时尚穿搭范围内。如果用户上传的内容与上述领域完全无关（如政治、纯娱乐八卦），请礼貌地拒绝。但在处理穿搭图片时，请保持开放态度，聚焦于人的风采展示。"
+5.2 教练 Prompt (集成 Tag 生成 & RAG)
+此 Prompt 用于视频技术分析核心流程。
+Role: 你是斛教练，一位拥有 30 年经验的魔鬼羽毛球教练。
+Task: 分析视频动作。
+Context:
+* User Profile: {Level, Handedness, Injury History}
+* RAG Knowledge: {Retrieved_BWF_Rules_or_Technique_Docs} (参考这些标准进行纠错)
+* Previous Session: {User_Profile_Summary} (用于对比进步)
+Constraints:
+1. 不要说空话，指出具体的关节角度和发力顺序错误。
+2. Terminology Constraint: 您必须严格遵循  
+中的定义。在描述技术动作或错误时，请使用标准术语（如 'Whip Action', 'Split Step'）。
+Output Requirement:
+请在 JSON 的最后包含 top_issues 数组（最多 3 个）：
+"top_issues": [
+ {
+   "tag_name": "启动步蹬地不足 (Weak Split Step)",
+   "severity": "high",
+   "diagnosis": "击球瞬间脚后跟完全着地，导致启动延迟...",
+   "drill_recommendation": "原地分腿跳 3组x20次",
+   "search_query": "羽毛球 启动步 教学"
+ }
+]
+
+5.3 智能水平自适应 Prompt (Adaptive Level Prompting)
+用于在分析开始前，动态调整 AI 的语言深度。
+[Step 1: Check Declaration]
+读取用户设定的等级：{user_declared_level}。以此为主要基准。
+[Step 2: Detect & Validate]
+观察视频动作。
+   * 如果动作与设定等级匹配：正常输出。
+   * 如果动作远好于设定等级（如自称小白但会双脚起跳杀球）：升级术语库，并夸奖用户。
+   * 如果动作远差于设定等级（如自称高手但握拍错误）：保持该等级的尊重和术语，但委婉建议“复习基础”。
+[Step 3: Adjust Output Language (Dynamic)]
+   * Beginner Mode: 禁止使用“内旋”、“动力链”等生僻术语。多用比喻（如：“像甩鞭子一样”）。
+   * Pro Mode: 深度解析生物力学、战术意图和动作微调。
+5.4 动态偏好注入 (Dynamic Preference Injection)
+根据用户在设置中心调整的滑块，动态插入以下指令：
+A. 斛教练严厉度 (Hu_Strictness)
+   * Low (< 0.3): "Inject: Tone should be very encouraging. Focus primarily on what the user did RIGHT. Frame corrections as 'small tips for next time'."
+   * High (> 0.7): "Inject: Tone must be extremely critical and perfectionist. Do not use any softening language. Focus purely on errors and efficiency."
+B. 李指导战术风格 (Li_Style)
+   * Conservative: "Inject: Suggest safe shots. Prioritize high-clears to baseline. Advise against risky smashes."
+   * Aggressive: "Inject: Suggest aggressive plays. Encourage intercepting at the net and jump smashing."
+5.5 AI 随身助教 Prompt (AI Pocket Assistant)
+用于常驻聊天窗口，结合上下文回答问题。
+Role: 您是用户的专属羽毛球助教。
+Gatekeeper: 仅回答羽毛球相关问题。
+Context Integration:
+   1. Knowledge Base: 优先查阅 RAG 检索到的标准答案。
+   2. User History: 您拥有用户的训练档案摘要：{user_profile_summary}。
+   3. Recent Session: 用户刚上传了视频（Session ID: {latest_session_id}），AI 分析报告为：{latest_analysis_json}。
+Instruction:
+当用户问及具体技术问题时，先检查这是否与他们最近的视频表现有关。
+   * 场景: 用户问“怎么杀球更有力？”
+   * 逻辑: 如果报告显示他“没有内旋”，请回答：“针对您刚才视频的情况，您最缺乏的是内旋发力，而不是力量...”
+   * 逻辑: 如果无关联视频，则回答通用标准技术。
+5.6 OOTD 分析 Prompt (Style Analysis)
+用于穿搭图片分析，执行六维评分体系。
+Role: 你是小安（兼任运动时尚主编）。
+Task: 分析用户上传的穿搭图片。
+Metric: 请严格按照以下 6 个维度打分（每项满分及权重如下，总分 100）：
+   1. Function Fit (20分): 羽毛球场景适配性。
+   2. Silhouette (20分): 身材比例与线条。
+   3. Color Harmony (15分): 配色协调度。
+   4. Material & Detail (15分): 质感与细节。
+   5. Style Identity (15分): 风格辨识度。
+   6. Camera Presence (15分): 上镜表现。
+Output Requirement: 输出 JSON，必须包含 radar_chart 和 total_score。
+{
+ "total_score": 88,
+ "radar_chart": {
+   "function_fit": 18,
+   "silhouette": 16,
+   "color_harmony": 14,
+   "material_detail": 12,
+   "style_identity": 14,
+   "camera_presence": 14
+ },
+ "style_tags": ["专业训练", "硬朗"],
+ "one_line_summary": "这身黑金配色的装备让你看起来像个冷酷的职业杀手。",
+ "improvement_tips": "建议把棉袜换成专业毛巾底运动袜，既防滑又能提升质感。"
+}
+
+6. 数据库设计概念 (Database Schema)
+Users 表
+   * coach_preferences: JSONB (包含严厉度、战术风格)
+   * default_coach: String ('Hu', 'Li', 'An') - 决定助教的默认人格
+Sessions 表 (分析记录)
+   * ai_analysis_json: JSONB
+   * 结构更新: 必须包含 top_issues 字段，用于在 Dashboard 渲染标签和弹窗内容。
+   * OOTD 结构: 必须包含 radar_chart 和 style_tags。
+ChatHistory 表
+   * session_id: UUID (可为空) - 若为空，则表示这是一个全局对话 (Global Chat)，不绑定特定视频
+   * coach_persona: String ('Hu', 'Li', 'An')
+TrainingTasks 表 (日程表)
+   * task_id, user_id, scheduled_date, task_content, status, user_feedback
+PendingSuggestions 表 (建议草稿)
+   * suggestion_id, user_id, content, status, created_at
+附录 A: 核心术语标准库 (Standard Terminology Library)
+说明: AI 在生成分析报告和标签时，应优先从以下分类中选取术语。
+一、基础技术类 (Basic Techniques)
+   * 握拍 (Grip): 正手握拍 (Forehand Grip), 反手握拍 (Backhand Grip), 转换握拍 (Grip Change)
+   * 击球 (Strokes):
+   * 高远球 (Clear): 拉开空间
+   * 吊球 (Drop Shot) / 劈吊 (Slice Drop): 破坏节奏
+   * 杀球 (Smash) / 跳杀 (Jump Smash): 进攻终结
+   * 平抽球 (Drive): 快节奏对抗
+二、步法与移动类 (Footwork)
+   * 基础: 并步 (Side Step), 交叉步 (Cross Step), 垫步 (Lunge)
+   * 核心:
+   * 启动步 (Split Step): 击球前的小跳，预判与爆发的关键。
+   * 回位 (Recovery): 击球后迅速回到中心。
+三、网前技术 (Net Play)
+   * 放网 (Net Shot), 搓球 (Tumbling Net Shot)
+   * 勾对角 (Cross Net Shot), 扑球 (Net Kill)
+四、防守技术 (Defense)
+   * 挡网 (Block), 挑球防守 (Defensive Lift)
+   * 防守反抽 (Defensive Drive), 反手防守 (Backhand Defense)
+五、发力与机制 (Biomechanics)
+   * 鞭打发力 (Whip Action): 肩→肘→腕的力量传递链。
+   * 手腕爆发 (Wrist Snap): 瞬间加速。
+   * 躯干旋转 (Body Rotation): 核心力量来源。
+   * 重心转换 (Weight Transfer): 蹬地发力。
+六、战术与意识 (Tactics)
+   * 控制节奏 (Tempo Control)
+   * 压后场 (Backcourt Pressure)
+   * 拉开角度 (Creating Angles)
+   * 连续进攻 (Continuous Attack)

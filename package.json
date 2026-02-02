@@ -1,0 +1,12 @@
+{
+  "name": "lssq-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install && npm run build && cd .. && mv frontend/.next .next",
+    "start": "cd frontend && npm run start",
+    "lint": "cd frontend && npm run lint"
+  },
+  "dependencies": {}
+}
