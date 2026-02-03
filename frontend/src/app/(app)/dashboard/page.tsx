@@ -2,30 +2,69 @@
 
 import Link from "next/link";
 import { Video, Image, Activity, Clock, TrendingUp, Sparkles, ChevronRight, BookOpen } from "lucide-react";
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useEffect, useState, useMemo } from "react";
 import clsx from "clsx";
 import InsightCard from "@/components/InsightCard";
+import historyData from "@/data/history.json";
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<any>({
-    total_training_time: 0,
-    focus_areas: [],
-    style_score: 0,
-    recent_records: []
-  });
+  const stats = useMemo(() => {
+    // 1. Calculate Total Training Time (assuming ~30s per video based on descriptions)
+    const videoRecords = historyData.filter(item => item.type === "video");
+    const total_training_time = Math.round((videoRecords.length * 30) / 60); // in minutes
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await axios.get("/api/v1/dashboard/stats");
-        setStats(response.data);
-      } catch (error) {
-        console.error("Failed to fetch dashboard stats:", error);
-      }
+    // 2. Calculate Style Score
+    const styleRecords = historyData.filter(item => item.type === "style");
+    const totalScore = styleRecords.reduce((acc, curr: any) => acc + (curr.data?.total_score || 0), 0);
+    const style_score = styleRecords.length > 0 ? Math.round(totalScore / styleRecords.length) : 0;
+
+    // 3. Extract Focus Areas (from top_issues)
+    const allIssues = videoRecords.flatMap((record: any) => 
+        record.data?.analysis_report?.top_issues?.map((issue: any) => issue.tag_name) || []
+    );
+    // Count frequency
+    const issueCounts: Record<string, number> = {};
+    allIssues.forEach(issue => {
+        const key = issue.split('(')[0].trim(); // Normalize "击球点 (Hitting Point)" -> "击球点"
+        issueCounts[key] = (issueCounts[key] || 0) + 1;
+    });
+    // Sort by frequency and take top 3
+    const focus_areas = Object.entries(issueCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 3)
+        .map(([key]) => key);
+
+    // 4. Recent Records
+    const recent_records = historyData.slice(0, 5).map(item => {
+        const isVideo = item.type === "video";
+        const dateObj = new Date(item.created_at);
+        const dateStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
+        
+        let result = "";
+        if (isVideo) {
+             // Try to find a good summary, e.g., first pro or generic title
+             result = "正手高远球练习"; // Simplified for now as titles aren't explicit in JSON
+             if ((item.data as any)?.analysis_report?.video_info?.includes("杀球")) {
+                 result = "高远球与杀球训练";
+             }
+        } else {
+             result = `穿搭评分: ${(item.data as any)?.total_score || 0}分`;
+        }
+
+        return {
+            id: item.id,
+            type: isVideo ? "视频分析" : "穿搭分析",
+            result: result,
+            date: dateStr
+        };
+    });
+
+    return {
+        total_training_time,
+        focus_areas,
+        style_score,
+        recent_records
     };
-
-    fetchStats();
   }, []);
 
   return (

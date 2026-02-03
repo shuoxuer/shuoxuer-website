@@ -5,14 +5,15 @@ import { useState, useMemo, useEffect } from "react";
 import { BookOpen, Search, ChevronRight, ChevronDown, Menu, Activity, ThumbsUp, ThumbsDown, ChevronLeft, Folder, FileText, Home } from "lucide-react";
 import Fuse from "fuse.js";
 import clsx from "clsx";
-import axios from "axios";
+import documentationData from "@/data/documentation.json";
 
 export default function DocumentationPage() {
-  const [docs, setDocs] = useState<any[]>([]);
+  // Use static data directly
+  const [docs] = useState<any[]>(documentationData);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   
-  // State definitions that were missing or misplaced
+  // State definitions
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
@@ -24,32 +25,23 @@ export default function DocumentationPage() {
   const [expandedSubCategories, setExpandedSubCategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const fetchDocs = async () => {
-      try {
-        const response = await axios.get("/api/v1/documentation");
-        setDocs(response.data);
-        if (response.data.length > 0) {
-            const firstDoc = response.data[0];
-            const cat = firstDoc.category;
-            const subCat = firstDoc.sections?.find((s: any) => s.title === "分类")?.content || "其他";
-            
-            // Set initial state
-            setSelectedDoc(firstDoc);
-            setSelectedCategory(cat);
-            setSelectedSubCategory(subCat);
-            
-            // Auto-expand first doc's path
-            setExpandedCategories(new Set([cat]));
-            setExpandedSubCategories(new Set([`${cat}-${subCat}`]));
-        }
-      } catch (error) {
-        console.error("Failed to fetch documentation:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDocs();
+    // Simulate loading for better UX or just set false immediately
+    // Initialize with first doc if available
+    if (documentationData.length > 0) {
+        const firstDoc = documentationData[0];
+        const cat = firstDoc.category;
+        const subCat = firstDoc.sections?.find((s: any) => s.title === "分类")?.content || "其他";
+        
+        // Set initial state
+        setSelectedDoc(firstDoc);
+        setSelectedCategory(cat);
+        setSelectedSubCategory(subCat);
+        
+        // Auto-expand first doc's path
+        setExpandedCategories(new Set([cat]));
+        setExpandedSubCategories(new Set([`${cat}-${subCat}`]));
+    }
+    setLoading(false);
   }, []);
 
   // Configure Fuse.js

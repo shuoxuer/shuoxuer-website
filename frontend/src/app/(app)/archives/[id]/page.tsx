@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import axios from "axios";
 import { ChevronLeft, Calendar, Video, Image, Heart, ArrowRight, FileText, Sparkles, X, Archive, Filter, AlertCircle } from "lucide-react";
 import StyleRadarChart from "@/components/StyleRadarChart";
 import clsx from "clsx";
+import historyData from "@/data/history.json";
 
 export default function ArchiveDetail() {
   const { id } = useParams();
@@ -18,20 +18,14 @@ export default function ArchiveDetail() {
   const [showPraiseModal, setShowPraiseModal] = useState(false);
 
   useEffect(() => {
-    const fetchRecord = async () => {
-      try {
-        const response = await axios.get(`/api/v1/archives/${id}`);
-        setRecord(response.data);
-      } catch (error) {
-        console.error("Failed to fetch record:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+    // Simulate fetch from local JSON
     if (id) {
-      fetchRecord();
+        const foundRecord = historyData.find(item => item.id === id);
+        if (foundRecord) {
+            setRecord(foundRecord);
+        }
     }
+    setLoading(false);
   }, [id]);
 
   if (loading) {

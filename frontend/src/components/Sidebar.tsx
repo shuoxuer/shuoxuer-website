@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Video, Image, History, Settings, Activity, Upload, PlayCircle, BookOpen } from "lucide-react";
+import { LayoutDashboard, Video, Image, History, Settings, Activity, Upload, BookOpen } from "lucide-react";
 import clsx from "clsx";
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useState, useMemo } from "react";
+import historyData from "@/data/history.json";
 
 const navItems = [
   { name: "总控台", href: "/dashboard", icon: LayoutDashboard },
@@ -18,25 +18,31 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [recentRecords, setRecentRecords] = useState<any[]>([]);
 
-  useEffect(() => {
-    const fetchRecent = async () => {
-        try {
-            const response = await axios.get("/api/v1/dashboard/stats");
-            if (response.data.recent_records) {
-                setRecentRecords(response.data.recent_records.slice(0, 3)); // Take top 3 for sidebar
-            }
-        } catch (error) {
-            console.error("Failed to fetch sidebar stats:", error);
+  const recentRecords = useMemo(() => {
+    return historyData.slice(0, 3).map(item => {
+        const isVideo = item.type === "video";
+        const dateObj = new Date(item.created_at);
+        const dateStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
+        
+        let result = "";
+        if (isVideo) {
+             result = "正手高远球练习";
+             if ((item.data as any)?.analysis_report?.video_info?.includes("杀球")) {
+                 result = "高远球与杀球训练";
+             }
+        } else {
+             result = `穿搭评分: ${(item.data as any)?.total_score || 0}分`;
         }
-    };
-    
-    // Initial fetch
-    fetchRecent();
-    
-    // Optional: Poll or listen to event (omitted for simplicity, assume refresh on nav)
-  }, [pathname]); // Refresh when navigating might be good enough for now
+
+        return {
+            id: item.id,
+            type: isVideo ? "视频分析" : "穿搭分析",
+            result: result,
+            date: dateStr
+        };
+    });
+  }, []);
 
   return (
     <div className="flex h-screen w-64 flex-col bg-slate-900 border-r border-slate-800 text-white shrink-0">
