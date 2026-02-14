@@ -1,0 +1,21 @@
+{
+  "name": "badminton-prompts",
+  "version": "1.0.0",
+  "description": "Generates structured prompts for badminton video analysis, style review, and chat using Jinja2 templates.",
+  "entry_point": "cli.py",
+  "inputs": {
+    "type": "object",
+    "properties": {
+      "template_name": {
+        "type": "string",
+        "enum": ["video_analysis", "style_analysis", "chat"],
+        "description": "The type of prompt to generate"
+      },
+      "parameters": {
+        "type": "object",
+        "description": "Parameters for the template (e.g. strictness, style, history_context)"
+      }
+    },
+    "required": ["template_name"]
+  }
+}

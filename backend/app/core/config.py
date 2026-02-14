@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     VERSION: str = "2.0"
     API_V1_STR: str = "/api/v1"
     
-    # Gemini API Key
-    GOOGLE_API_KEY: str = ""
+    # Qwen API Key
+    QWEN_API_KEY: str = ""
 
     # Database
     DATABASE_URL: str = "sqlite:///./sql_app.db"

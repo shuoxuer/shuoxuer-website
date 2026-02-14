@@ -1,0 +1,11 @@
+{
+  "name": "coach-greeting",
+  "version": "1.0.0",
+  "description": "Generates a dynamic greeting from Coach Hu with current date and location (Hefei).",
+  "entry_point": "cli.py",
+  "inputs": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  }
+}

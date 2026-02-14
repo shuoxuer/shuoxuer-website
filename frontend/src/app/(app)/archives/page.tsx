@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { useRouter } from "next/navigation";
-import historyData from "@/data/history.json";
+import axios from "axios";
 
 export default function Archives() {
   const router = useRouter();
@@ -13,47 +13,15 @@ export default function Archives() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetch from local JSON
-    const loadArchives = () => {
-      const mappedRecords = historyData.map(item => {
-        const isVideo = item.type === "video";
-        const dateObj = new Date(item.created_at);
-        const dateStr = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
-        
-        let title = "";
-        let details: any = {};
-
-        if (isVideo) {
-            const videoInfo = (item.data as any)?.analysis_report?.video_info || "羽毛球训练视频";
-            title = videoInfo.length > 20 ? videoInfo.substring(0, 20) + "..." : videoInfo;
-            // Fallback title if video_info is generic
-            if (title.includes("单人羽毛球训练")) title = "正手高远球定点练习";
-            
-            details = {
-                top_issues: (item.data as any)?.analysis_report?.top_issues || [],
-                coach_advice: (item.data as any)?.coach_advice || {},
-                action_description: (item.data as any)?.analysis_report?.action_description
-            };
-        } else {
-            title = (item.data as any)?.one_line_summary || "穿搭风格分析";
-            details = {
-                tags: (item.data as any)?.style_tags || [],
-                coach_an_comment: (item.data as any)?.coach_an_comment,
-                analysis: (item.data as any)?.detailed_review?.highlights
-            };
-        }
-
-        return {
-            id: item.id,
-            type: item.type,
-            date: dateStr,
-            title: title,
-            details: details
-        };
-      });
-
-      setRecords(mappedRecords);
-      setIsLoading(false);
+    const loadArchives = async () => {
+      try {
+        const response = await axios.get("/api/v1/archives");
+        setRecords(response.data);
+      } catch (error) {
+        console.error("Failed to fetch archives:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadArchives();
@@ -61,12 +29,17 @@ export default function Archives() {
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!window.confirm("确定要删除这条记录吗？(演示模式仅为本地移除)")) {
+    if (!window.confirm("确定要删除这条记录吗？")) {
         return;
     }
 
-    // Static mode: just update local state
-    setRecords(prev => prev.filter(r => r.id !== id));
+    try {
+        await axios.delete(`/api/v1/archives/${id}`);
+        setRecords(prev => prev.filter(r => r.id !== id));
+    } catch (error) {
+        console.error("Failed to delete record:", error);
+        alert("删除失败，请稍后重试");
+    }
   };
 
   return (
@@ -101,11 +74,8 @@ export default function Archives() {
                   您还没有进行过任何分析。所有的视频分析报告和穿搭点评都会自动保存在这里。
               </p>
               <div className="flex space-x-4">
-                  <Link href="/video-studio" className="px-6 py-2 bg-yellow-400 text-slate-900 font-bold rounded-lg hover:bg-yellow-300 transition">
-                      新建视频分析
-                  </Link>
-                  <Link href="/style-studio" className="px-6 py-2 bg-slate-800 text-white font-bold rounded-lg hover:bg-slate-700 transition">
-                      新建穿搭分析
+                  <Link href="/chat" className="px-6 py-2 bg-yellow-400 text-slate-900 font-bold rounded-lg hover:bg-yellow-300 transition">
+                      开始新分析
                   </Link>
               </div>
           </div>

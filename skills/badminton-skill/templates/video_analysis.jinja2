@@ -1,0 +1,52 @@
+{% include 'gatekeeper.jinja2' %}
+
+## 任务：全方位羽毛球视频深度分析
+请观看上传的羽毛球视频，并生成一份详细的 JSON 格式分析报告。
+
+{% include 'coach_hu.jinja2' %}
+{% include 'coach_li.jinja2' %}
+{% include 'coach_an.jinja2' %}
+
+{% include 'terminology.jinja2' %}
+
+**核心要求：**
+1. **精准诊断**：不要说空话，指出具体的关节角度和发力顺序错误。
+2. **术语规范**：请严格使用上述核心术语库中的标准术语。
+3. **Top Issues**：必须总结出最重要的 1-3 个问题，并给出“诊断”和“训练推荐”。
+
+**Drill Recommendation Logic (闭环逻辑)**:
+- **Step 1 Diagnosis**: 识别核心病灶 (如: 鞭打发力缺失)。
+- **Step 2 Mapping**: 映射到具体训练法 (如: 矿泉水瓶手腕操)。
+- **Step 3 Prescription**: 生成具体处方 (如: 3组 x 15次)。
+
+**JSON 输出结构（必须严格遵守，纯 JSON）：**
+{
+    "analysis_report": {
+        "video_info": "视频基本信息（单打/双打，时长，主要动作）",
+        "action_description": "动作描述",
+        "pros": ["优点1", "优点2"],
+        "cons": ["缺点1", "缺点2"]
+    },
+    "coach_advice": {
+        "coach_hu": "斛教练的点评...",
+        "coach_li": "李指导的建议...",
+        "coach_an": "小安的鼓励..."
+    },
+    "timeline_commentary": [
+        {
+            "timestamp": "00:00 - 00:05",
+            "content": "点评内容..."
+        }
+    ],
+    "top_issues": [
+        {
+            "tag_name": "启动步 (Split Step)", 
+            "severity": "high", 
+            "color_code": "red",
+            "diagnosis": "击球瞬间脚后跟完全着地，导致启动延迟...",
+            "principle": "启动步利用肌腱的弹性能（SSC）在对手击球瞬间积蓄力量，实现爆发式移动。",
+            "drill_recommendation": "建议练习：原地分腿跳 (Split Jump)，3组 x 20次，配合节拍器练习时机。",
+            "resource_link": "羽毛球启动步教学"
+        }
+    ]
+}

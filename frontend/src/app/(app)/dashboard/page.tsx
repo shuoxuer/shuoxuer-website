@@ -1,70 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { Video, Image, Activity, Clock, TrendingUp, Sparkles, ChevronRight, BookOpen } from "lucide-react";
+import { Video, Image, Activity, Clock, TrendingUp, Sparkles, ChevronRight, BookOpen, MessageSquare } from "lucide-react";
 import { useEffect, useState, useMemo } from "react";
 import clsx from "clsx";
 import InsightCard from "@/components/InsightCard";
-import historyData from "@/data/history.json";
+import axios from "axios";
 
 export default function Dashboard() {
-  const stats = useMemo(() => {
-    // 1. Calculate Total Training Time (assuming ~30s per video based on descriptions)
-    const videoRecords = historyData.filter(item => item.type === "video");
-    const total_training_time = Math.round((videoRecords.length * 30) / 60); // in minutes
+  const [stats, setStats] = useState({
+      total_training_time: 0,
+      focus_areas: [] as string[],
+      style_score: 0,
+      recent_records: [] as any[]
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
-    // 2. Calculate Style Score
-    const styleRecords = historyData.filter(item => item.type === "style");
-    const totalScore = styleRecords.reduce((acc, curr: any) => acc + (curr.data?.total_score || 0), 0);
-    const style_score = styleRecords.length > 0 ? Math.round(totalScore / styleRecords.length) : 0;
-
-    // 3. Extract Focus Areas (from top_issues)
-    const allIssues = videoRecords.flatMap((record: any) => 
-        record.data?.analysis_report?.top_issues?.map((issue: any) => issue.tag_name) || []
-    );
-    // Count frequency
-    const issueCounts: Record<string, number> = {};
-    allIssues.forEach(issue => {
-        const key = issue.split('(')[0].trim(); // Normalize "击球点 (Hitting Point)" -> "击球点"
-        issueCounts[key] = (issueCounts[key] || 0) + 1;
-    });
-    // Sort by frequency and take top 3
-    const focus_areas = Object.entries(issueCounts)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 3)
-        .map(([key]) => key);
-
-    // 4. Recent Records
-    const recent_records = historyData.slice(0, 5).map(item => {
-        const isVideo = item.type === "video";
-        const dateObj = new Date(item.created_at);
-        const dateStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
-        
-        let result = "";
-        if (isVideo) {
-             // Try to find a good summary, e.g., first pro or generic title
-             result = "正手高远球练习"; // Simplified for now as titles aren't explicit in JSON
-             if ((item.data as any)?.analysis_report?.video_info?.includes("杀球")) {
-                 result = "高远球与杀球训练";
-             }
-        } else {
-             result = `穿搭评分: ${(item.data as any)?.total_score || 0}分`;
+  useEffect(() => {
+    const loadStats = async () => {
+        try {
+            const response = await axios.get("/api/v1/dashboard/stats");
+            setStats(response.data);
+        } catch (error) {
+            console.error("Failed to fetch dashboard stats:", error);
+        } finally {
+            setIsLoading(false);
         }
-
-        return {
-            id: item.id,
-            type: isVideo ? "视频分析" : "穿搭分析",
-            result: result,
-            date: dateStr
-        };
-    });
-
-    return {
-        total_training_time,
-        focus_areas,
-        style_score,
-        recent_records
     };
+    
+    loadStats();
   }, []);
 
   return (
@@ -79,15 +43,11 @@ export default function Dashboard() {
            {/* Quick Actions */}
            <Link href="/documentation" className="bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold flex items-center hover:bg-emerald-400 transition shadow-lg shadow-emerald-400/20">
              <BookOpen className="w-5 h-5 mr-2" />
-             文档
+             知识库
            </Link>
-           <Link href="/video-studio" className="bg-yellow-400 text-slate-900 px-4 py-2 rounded-lg font-bold flex items-center hover:bg-yellow-300 transition shadow-lg shadow-yellow-400/20">
-             <Video className="w-5 h-5 mr-2" />
-             分析视频
-           </Link>
-           <Link href="/style-studio" className="bg-slate-800 text-white px-4 py-2 rounded-lg font-bold flex items-center hover:bg-slate-700 transition border border-slate-700">
-             <Image className="w-5 h-5 mr-2" />
-             分析穿搭
+           <Link href="/chat" className="bg-yellow-400 text-slate-900 px-4 py-2 rounded-lg font-bold flex items-center hover:bg-yellow-300 transition shadow-lg shadow-yellow-400/20">
+             <MessageSquare className="w-5 h-5 mr-2" />
+             开始分析/对话
            </Link>
         </div>
       </div>
@@ -100,7 +60,9 @@ export default function Dashboard() {
                 <Clock className="w-24 h-24 text-yellow-400" />
             </div>
             <h3 className="text-slate-400 font-medium mb-2 flex items-center"><Clock className="w-4 h-4 mr-2 text-yellow-400"/> 累计分析时长</h3>
-            <div className="text-3xl font-bold text-white">{stats.total_training_time} <span className="text-sm font-normal text-slate-500">分钟</span></div>
+            <div className="text-3xl font-bold text-white">
+                {isLoading ? "-" : stats.total_training_time} <span className="text-sm font-normal text-slate-500">分钟</span>
+            </div>
             <div className="text-slate-500 text-sm mt-2">
                 {stats.total_training_time > 0 ? "保持这个节奏！" : "开始你的第一次分析吧"}
             </div>
@@ -113,7 +75,9 @@ export default function Dashboard() {
             </div>
             <h3 className="text-slate-400 font-medium mb-2 flex items-center"><TrendingUp className="w-4 h-4 mr-2 text-sky-400"/> 重点提升领域</h3>
             <div className="flex flex-wrap gap-2 mt-1 relative z-10">
-                {stats.focus_areas.length > 0 ? (
+                {isLoading ? (
+                    <span className="text-slate-500">加载中...</span>
+                ) : stats.focus_areas.length > 0 ? (
                     stats.focus_areas.map((area: string, idx: number) => (
                         <InsightCard
                             key={idx}
@@ -139,7 +103,9 @@ export default function Dashboard() {
                 <Sparkles className="w-24 h-24 text-pink-400" />
             </div>
             <h3 className="text-slate-400 font-medium mb-2 flex items-center"><Sparkles className="w-4 h-4 mr-2 text-pink-400"/> 穿搭风尚分</h3>
-            <div className="text-3xl font-bold text-white">{stats.style_score} <span className="text-sm font-normal text-slate-500">/ 100</span></div>
+            <div className="text-3xl font-bold text-white">
+                {isLoading ? "-" : stats.style_score} <span className="text-sm font-normal text-slate-500">/ 100</span>
+            </div>
             <div className="text-slate-500 text-sm mt-2">
                 {stats.style_score > 0 ? "你的球场造型很有范儿！" : "暂无 OOTD 记录"}
             </div>
@@ -155,7 +121,11 @@ export default function Dashboard() {
             </Link>
         </div>
         
-        {stats.recent_records.length > 0 ? (
+        {isLoading ? (
+             <div className="bg-slate-900/50 p-8 rounded-xl border border-slate-800 text-center text-slate-500">
+                 加载记录中...
+             </div>
+        ) : stats.recent_records.length > 0 ? (
             <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
                 {stats.recent_records.map((record: any) => (
                     <div key={record.id} className="p-4 border-b border-slate-800 last:border-0 hover:bg-slate-800/50 transition flex items-center justify-between group">
@@ -181,7 +151,7 @@ export default function Dashboard() {
                 <Activity className="h-12 w-12 text-slate-600 mb-4" />
                 <h3 className="text-lg font-bold text-white mb-2">暂无训练记录</h3>
                 <p className="text-slate-400 mb-6">您还没有上传过任何视频或图片。</p>
-                <Link href="/video-studio" className="text-yellow-400 hover:text-yellow-300 font-medium">
+                <Link href="/chat" className="text-yellow-400 hover:text-yellow-300 font-medium">
                     立即开始分析 &rarr;
                 </Link>
             </div>

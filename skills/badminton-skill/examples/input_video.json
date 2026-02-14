@@ -1,0 +1,7 @@
+{
+  "template_name": "video_analysis",
+  "parameters": {
+    "strictness": 8,
+    "style": "aggressive"
+  }
+}

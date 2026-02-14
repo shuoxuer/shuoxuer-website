@@ -8,10 +8,10 @@ export default function LandingPage() {
         <Activity className="h-16 w-16 text-yellow-400 mx-auto" />
       </div>
       <h1 className="text-5xl font-bold text-white mb-6 tracking-tight">
-        羽球智能私教 <span className="text-yellow-400">AI</span>
+        羽毛球智能私教 <span className="text-yellow-400">AI</span>
       </h1>
       <p className="text-xl text-slate-400 max-w-2xl mb-10">
-        您的私人 AI 教练团队。胡教练分析技术，李指导制定战术，小安提供心理支持。
+        您的私人 AI 教练团队。斛教练分析技术，李指导制定战术，小安提供心理支持。
         <br />
         全方位提升您的羽毛球水平。
       </p>

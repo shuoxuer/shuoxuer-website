@@ -56,7 +56,7 @@ export default function VideoStudio() {
     formData.append("video", videoState.file);
     
     try {
-        const response = await axios.post("/api/v1/analysis/video", formData, {
+        const response = await axios.post("/api/v1/analyze/video", formData, {
             headers: { "Content-Type": "multipart/form-data" },
         });
 
